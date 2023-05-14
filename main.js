@@ -1,76 +1,114 @@
-let grids = document.querySelectorAll(".grid")
-let keysPressed = []
-let word
+let grid_array
+let all_keys_pressed = [];
+let correct_word;
+let game_running
+let chances
 
-function main() { // main function
-
-    fetch("https://random-word-api.herokuapp.com/word?length=5") // fetch promise - gets word from api
+const start_game = () => {
+    fetch("https://random-word-api.herokuapp.com/word?length=5")
         .then((response) => response.json())
-        .then((data) => {word = data[0]; console.log(word)})
-
-    document.addEventListener("keyup", handleKeys) // listens for key presses
+        .then((data) => {
+            correct_word = data[0];
+            console.log(correct_word);
+        });
+    grid_array = document.querySelectorAll(".grid")
+    game_running = true
+    chances = 6
+    document.addEventListener("keyup", handle_key_presses);
 }
 
-function handleKeys(e) { // runs when key is pressed
+const handle_key_presses = (e) => {
 
-    const isEnter = e.key == "Enter" // enter was pressed
-    const isBackspace = e.key == "Backspace" // backspace was pressed
-    const isLetter = e.key.length == 1 && e.key.match(/[a-z]/i) // letter was pressed
-    const fullRow = keysPressed.length % 5 == 0 && keysPressed.length != 0 // row is full and needs to be checked
+    if (!game_running) {return}
 
-    if(isBackspace && grids[keysPressed.length - 1].getAttribute("checked") == "false"){ // if backspace and the last filled grid is unchecked, then...
-        keysPressed.pop() // remove that letter from array
-        updateBoxes(keysPressed) // update the grid
+    if (e.key == "Backspace") {
+        let number_of_keys = all_keys_pressed.length
+        if (number_of_keys > 0) {
+            let most_recent_grid = grid_array[all_keys_pressed.length - 1]
+            let most_recent_grid_checked_status = most_recent_grid.getAttribute("checked")
+            if (most_recent_grid_checked_status == "false") {
+                all_keys_pressed.pop()
+                update_html(all_keys_pressed)
+            }
+        }
         return
     }
 
-    if(fullRow && grids[keysPressed.length - 1].getAttribute("checked") == "false"){ // if the row is full and the last filled grid is unchecked, then...
-        if(isEnter){check()} // check for win, if enter pressed
-        return // or return the function
+    if (e.key == "Enter") {
+        let number_of_keys = all_keys_pressed.length
+        if (number_of_keys > 0) {
+            let most_recent_grid = grid_array[number_of_keys - 1]
+            let most_recent_grid_checked_status = most_recent_grid.getAttribute("checked")
+            let row_full = number_of_keys % 5 == 0
+            if (most_recent_grid_checked_status == "false" && row_full) {
+                check_for_win()
+            }
+        }
+        return
     }
 
-    if(isLetter) { // if row isn't full and not backspace, then we can add letter
-        keysPressed.push(e.key) // push letter to array
-        updateBoxes(keysPressed) // update the grid
+    const letter_pressed = e.key.length == 1 && e.key.match(/[a-z]/i)
+    if (letter_pressed) {
+        let should_push_letter = false
+        let number_of_keys = all_keys_pressed.length
+        if (number_of_keys == 0) {
+            should_push_letter = true
+        } else {
+            row_full = number_of_keys > 0 && number_of_keys % 5 == 0
+            if (!row_full) {
+                should_push_letter = true
+            } else {
+                let most_recent_grid = grid_array[number_of_keys - 1]
+                let most_recent_grid_checked_status = most_recent_grid.getAttribute("checked")
+                if (most_recent_grid_checked_status == "true") {
+                    should_push_letter = true
+                }
+            }
+        }
+        if (should_push_letter) {
+            all_keys_pressed.push(e.key)
+            update_html(all_keys_pressed)
+        }
     }
 }
 
-function updateBoxes(keysPressed) { // function that updates grid based on changes to the keysPressed array
-
-    grids.forEach(grid => { // for each grid...
-
-        if(keysPressed[grid.id]) { // if there exists a keysPressed value at that grid's index...
-            grid.innerHTML = keysPressed[grid.id].toUpperCase() // update that grid's html
+const update_html = (all_keys_pressed) => {
+    grid_array.forEach((grid) => {
+        if (all_keys_pressed[grid.id]) {
+            new_grid_letter = all_keys_pressed[grid.id].toUpperCase()
+            grid.innerHTML = new_grid_letter
         } else {
-            grid.innerHTML = "" // if there isn't, then grid becomes blank
+            grid.innerHTML = ""
         }
     });
 }
 
-function check() { // function that runs to check for a win
-
-    grids.forEach(grid => { // for each grid...
-
-        const gridNumber = Number(grid.id) // get numerical index
-        const gridLetter = grid.innerHTML.toLowerCase() // get grid's letter
-
-        if(gridLetter == word[gridNumber % 5]) { // if grid's letter equals the word's letter for that column...
-            grid.style.backgroundColor = "green" // grid turns green
+const check_for_win = () => {
+    grid_array.forEach((grid) => {
+        const grid_letter = grid.innerHTML.toLowerCase();
+        const correct_column_letter = correct_word[grid.id % 5]
+        if (grid_letter.length == 0) {
+            return
+        } if (grid_letter == correct_column_letter) {
+            grid.style.backgroundColor = "green";
+        } else if (grid_letter.length > 0 && correct_word.includes(grid_letter)) {
+            grid.style.backgroundColor = "yellow";
         }
+        grid.setAttribute("checked", true)
+    });
 
-        else if(word.includes(gridLetter) && gridLetter != "") { // else if the grid's letter is in the word...
-            grid.style.backgroundColor = "yellow" // grid turns yellow
-        }
-
-        if(grid.innerHTML != ""){ // confirm grid was checked
-            grid.setAttribute("checked", "true")
-        }
-    })
-
-    const submittedWord = keysPressed.slice(-5).join("") // get the user-submitted word
-    if(submittedWord == word){ // checked if user-submitted word equals word
-        document.removeEventListener("keyup", handleKeys) // game ended, so remove event listener
+    chances -= 1
+    end_message_element = document.getElementById("end-message")
+    const submitted_word = all_keys_pressed.slice(-5).join(""); // get user word
+    if (submitted_word == correct_word) {
+        game_running = false
+        end_message = `you won! the word was ${correct_word}`
+        end_message_element.innerHTML = end_message
+    } else if (chances == 0) {
+        game_running = false
+        end_message = `you lost! the word was ${correct_word}`
+        end_message_element.innerHTML = end_message
     }
 }
 
-main() // tada!
+document.addEventListener("DOMContentLoaded", start_game)

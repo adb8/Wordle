@@ -24,11 +24,15 @@ body {
     margin: auto;
 }
 
-#header {
+#header, #end-message {
     font-size: 70px;
     text-align: center;
     margin-top: 50px;
     margin-bottom: 50px;
     color: white;
+}
+
+#end-message {
+    font-size: 40px
 }
 
