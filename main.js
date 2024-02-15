@@ -18,9 +18,7 @@ const start_game = () => {
 }
 
 const handle_key_presses = (e) => {
-
     if (!game_running) {return}
-
     if (e.key == "Backspace") {
         let number_of_keys = all_keys_pressed.length
         if (number_of_keys > 0) {
